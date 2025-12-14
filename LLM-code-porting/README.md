@@ -45,8 +45,8 @@ You'll also need at least one API key from OpenAI, Anthropic, or Grok. Alternati
 First, clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/code-porter.git
-cd code-porter
+git clone [https://github.com/yourusername/code-porter.git](https://github.com/Adel-Lis/llms-lab.git)
+cd llms-lab/LLM-code-porting/
 ```
 
 **Option 1: Using uv (fastest)**
