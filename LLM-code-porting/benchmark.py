@@ -232,8 +232,6 @@ def main():
     else:
         results["java"] = {"success": False, "error": "File not found", "execution_time": None}
     
-    # Output results as JSON to stdout
-    print(json.dumps(results, indent=2))
 
 if __name__ == "__main__":
     main()

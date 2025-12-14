@@ -21,22 +21,6 @@ openai_api_key = os.getenv('OPENAI_API_KEY')
 anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
 grok_api_key = os.getenv('GROK_API_KEY')
 
-if openai_api_key:
-    print(f"OpenAI API Key loaded SUCCESSFULLY [{openai_api_key[:8]}]")
-else:
-    print("OpenAI API not found or non existing")
-    
-if anthropic_api_key:
-    print(f"Anthropic API Key loaded SUCCESSFULLY [{anthropic_api_key[:7]}]")
-else:
-    print("Anthropic API not found or non existing")
-
-if grok_api_key:
-    print(f"Grok API Key loaded SUCCESSFULLY [{grok_api_key[:4]}]")
-else:
-    print("Grok API not found or non existing")
-
-
 anthropic_url = "https://api.anthropic.com/v1/"
 grok_url = "https://api.x.ai/v1"
 ollama_url = "http://localhost:11434/v1"
@@ -135,17 +119,11 @@ def execute_and_benchmark(python_code, cpp_code, java_code, rust_code):
         tuple: (matplotlib_figure, results_markdown)
     """
     # Run benchmark in Docker
-    print("[Benchmark] Starting execution...")
     results = run_benchmark(python_code, cpp_code, java_code, rust_code)
-    
-    # DEBUG: Print what we received
-    print(f"[DEBUG] Results received: {results}")
-    print(f"[DEBUG] Results type: {type(results)}")
-    print(f"[DEBUG] Results keys: {results.keys() if isinstance(results, dict) else 'Not a dict'}")
     
     # Check for errors
     if "error" in results and not any(k in results for k in ['python', 'cpp', 'java', 'rust']):
-        error_msg = f"### ❌ Benchmark Error\n\n```\n{results['error']}\n```"
+        error_msg = f"### Benchmark Error\n\n```\n{results['error']}\n```"
         return None, error_msg
     
     # Extract execution times and prepare data
@@ -162,100 +140,168 @@ def execute_and_benchmark(python_code, cpp_code, java_code, rust_code):
         'rust': {'name': 'Rust', 'color': '#f74c00'}
     }
     
+    # Collect all data first
+    lang_data = []
     for lang_key, config in lang_config.items():
         if lang_key in results:
             result = results[lang_key]
-            languages.append(config['name'])
             
             if result.get('success', False):
                 exec_time = result.get('execution_time', 0)
-                times.append(exec_time * 1000)  # Convert to milliseconds
-                colors.append(config['color'])
-                statuses.append('✓')
-                outputs.append(result.get('output', '')[:100])  # First 100 chars
+                lang_data.append({
+                    'name': config['name'],
+                    'time': exec_time * 1000,  # Convert to milliseconds
+                    'color': config['color'],
+                    'status': 'PASS',
+                    'output': result.get('output', '')[:100]
+                })
             else:
-                times.append(0)
-                colors.append('#666666')
-                statuses.append('✗')
-                outputs.append(result.get('error', 'Unknown error')[:100])
+                lang_data.append({
+                    'name': config['name'],
+                    'time': 0,
+                    'color': '#666666',
+                    'status': 'FAIL',
+                    'output': result.get('error', 'Unknown error')[:100]
+                })
+    
+    # Sort by execution time DESCENDING (highest/slowest first, lowest/fastest last)
+    lang_data.sort(key=lambda x: x['time'], reverse=True)
+    
+    # Extract sorted data
+    for item in lang_data:
+        languages.append(item['name'])
+        times.append(item['time'])
+        colors.append(item['color'])
+        statuses.append(item['status'])
+        outputs.append(item['output'])
     
     # Create visualization
     if any(t > 0 for t in times):
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(12, 7))
         
-        # Create bar chart
-        bars = ax.barh(languages, times, color=colors, alpha=0.8, edgecolor='white', linewidth=2)
+        # Use logarithmic scale
+        ax.set_yscale('log')
+        
+        # Create vertical bar chart (not horizontal)
+        bars = ax.bar(languages, times, color=colors, alpha=0.85, edgecolor='#2c3e50', linewidth=2.5, width=0.6)
+        
+        # Add exponential decay curve (the red curve from your sketch)
+        if len(times) > 1:
+            import numpy as np
+            x_positions = np.arange(len(languages))
+            # Fit exponential curve through the points
+            ax.plot(x_positions, times, 'r-', linewidth=3, alpha=0.7, zorder=5)
         
         # Styling
-        ax.set_xlabel('Execution Time (ms)', fontsize=12, fontweight='bold')
-        ax.set_title('Performance Comparison', fontsize=14, fontweight='bold', pad=20)
-        ax.grid(axis='x', alpha=0.3, linestyle='--')
+        ax.set_ylabel('Execution Time (ms) - Log Scale', fontsize=13, fontweight='bold')
+        ax.set_xlabel('Language', fontsize=13, fontweight='bold')
+        ax.set_title('Performance Comparison', fontsize=15, fontweight='bold', pad=20)
+        ax.grid(axis='y', alpha=0.25, linestyle='--', which='both')
+        ax.grid(axis='y', alpha=0.4, linestyle='-', which='major', linewidth=1)
         
-        # Add value labels on bars
+        # Add value labels on top of bars
         for i, (bar, time, status) in enumerate(zip(bars, times, statuses)):
             if time > 0:
-                label = f'{status} {time:.2f}ms'
-                ax.text(time, bar.get_y() + bar.get_height()/2, 
-                       f'  {label}', va='center', fontsize=10, fontweight='bold')
+                label = f'{time:.2f}ms'
+                ax.text(bar.get_x() + bar.get_width()/2, time * 1.5, 
+                       label, ha='center', va='bottom', fontsize=10, fontweight='bold')
+        
+        # Format y-axis ticks
+        from matplotlib.ticker import FuncFormatter
+        def format_ms(y, p):
+            if y >= 1000:
+                return f'{y/1000:.1f}s'
+            elif y >= 1:
+                return f'{y:.0f}ms'
+            else:
+                return f'{y:.2f}ms'
+        ax.yaxis.set_major_formatter(FuncFormatter(format_ms))
         
         # Set background
         ax.set_facecolor('#f8f9fa')
         fig.patch.set_facecolor('white')
+        
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=0, fontsize=11, fontweight='bold')
         
         plt.tight_layout()
     else:
         fig = None
     
     # Generate results summary
-    markdown_lines = ["### 📊 Benchmark Results\n"]
+    markdown_lines = []
     
-    # Find fastest successful execution
-    successful_times = [(lang, time) for lang, time, status in zip(languages, times, statuses) 
-                        if status == '✓' and time > 0]
+    # Find fastest successful execution and sort by speed
+    successful_results = []
+    python_time = None
     
-    if successful_times:
-        fastest_lang, fastest_time = min(successful_times, key=lambda x: x[1])
-        python_time = next((time for lang, time in zip(languages, times) if lang == 'Python'), None)
-        
-        markdown_lines.append(f"**🏆 Fastest:** {fastest_lang} ({fastest_time:.2f}ms)\n")
-        
-        if python_time and python_time > 0 and fastest_time > 0:
-            speedup = python_time / fastest_time
-            markdown_lines.append(f"**⚡ Speedup:** {speedup:.1f}x faster than Python\n")
-        
-        markdown_lines.append("\n---\n")
-        markdown_lines.append("#### Detailed Results:\n")
-        
-        for lang, time, status in zip(languages, times, statuses):
-            if status == '✓' and time > 0:
-                if python_time and python_time > 0 and time > 0:
-                    relative_speed = python_time / time
-                    markdown_lines.append(
-                        f"- **{lang}**: {time:.2f}ms ({relative_speed:.1f}x vs Python) {status}\n"
-                    )
-                else:
-                    markdown_lines.append(f"- **{lang}**: {time:.2f}ms {status}\n")
-            else:
-                markdown_lines.append(f"- **{lang}**: Failed {status}\n")
-    else:
-        markdown_lines.append("**❌ No successful executions**\n\n")
-        markdown_lines.append("All languages failed to execute. Check the code for errors.\n")
+    for lang, time, status in zip(languages, times, statuses):
+        if status == 'PASS' and time > 0:
+            successful_results.append((lang, time))
+            if lang == 'Python':
+                python_time = time
     
-    # Add individual outputs/errors
-    markdown_lines.append("\n---\n")
-    markdown_lines.append("#### Execution Details:\n")
+    # Sort by execution time (fastest first)
+    successful_results.sort(key=lambda x: x[1])
     
-    for lang_key, config in lang_config.items():
-        if lang_key in results:
-            result = results[lang_key]
-            markdown_lines.append(f"\n**{config['name']}:**\n")
+    if successful_results and python_time and python_time > 0:
+        markdown_lines.append("### Performance Ranking\n\n")
+        
+        # Display ranking with winner highlighted
+        for rank, (lang, time) in enumerate(successful_results, 1):
+            speedup = python_time / time if time > 0 else 0
             
-            if result.get('success', False):
-                output = result.get('output', 'No output')
-                markdown_lines.append(f"```\n{output[:200]}\n```\n")
+            if rank == 1:
+                # Winner - highlighted
+                markdown_lines.append(f"**RANK {rank} - WINNER: {lang}**\n")
+                markdown_lines.append(f"```\n")
+                markdown_lines.append(f"Execution Time: {time:.2f}ms\n")
+                if lang != 'Python':
+                    markdown_lines.append(f"Speedup: {speedup:.2f}x faster than Python\n")
+                else:
+                    markdown_lines.append(f"Baseline Performance\n")
+                markdown_lines.append(f"```\n\n")
             else:
+                # Other languages
+                markdown_lines.append(f"**RANK {rank}: {lang}**\n")
+                markdown_lines.append(f"- Execution Time: {time:.2f}ms\n")
+                if lang != 'Python':
+                    markdown_lines.append(f"- Speedup: {speedup:.2f}x faster than Python\n")
+                else:
+                    markdown_lines.append(f"- Baseline Performance\n")
+                markdown_lines.append("\n")
+        
+        # Detailed results section
+        markdown_lines.append("---\n\n")
+        markdown_lines.append("### Execution Details\n\n")
+        
+        for lang_key, config in lang_config.items():
+            if lang_key in results:
+                result = results[lang_key]
+                markdown_lines.append(f"**{config['name']}:**\n")
+                
+                if result.get('success', False):
+                    output = result.get('output', 'No output')
+                    # Show first 300 characters of output
+                    if len(output) > 300:
+                        output = output[:300] + "..."
+                    markdown_lines.append(f"```\n{output}\n```\n\n")
+                else:
+                    error = result.get('error', 'Unknown error')
+                    markdown_lines.append(f"```\nERROR: {error[:200]}\n```\n\n")
+    
+    else:
+        markdown_lines.append("### Benchmark Results\n\n")
+        markdown_lines.append("**No successful executions**\n\n")
+        markdown_lines.append("All languages failed to execute. Check the code for errors.\n\n")
+        
+        # Show errors for each language
+        markdown_lines.append("### Execution Details\n\n")
+        for lang_key, config in lang_config.items():
+            if lang_key in results:
+                result = results[lang_key]
                 error = result.get('error', 'Unknown error')
-                markdown_lines.append(f"```\n❌ {error[:200]}\n```\n")
+                markdown_lines.append(f"**{config['name']}:** {error[:200]}\n\n")
     
     return fig, ''.join(markdown_lines)
 
@@ -447,7 +493,7 @@ if __name__ == "__main__":
     
     def signal_handler(signum, frame):
         """Handle interrupt signals."""
-        cleanup()
+        # cleanup()
         exit(0)
     
     # Register cleanup handlers

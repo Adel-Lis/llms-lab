@@ -80,7 +80,7 @@ class DockerBenchmarkManager:
                     print(f"[Docker Error] {log['error']}")
             
             self.image_built = True
-            print(f"[Docker] ✓ Image '{self.image_name}' built successfully!")
+            print(f"[Docker] Image '{self.image_name}' built successfully!")
             return True
             
         except docker.errors.BuildError as e:
@@ -98,7 +98,7 @@ class DockerBenchmarkManager:
         try:
             self.client.images.get(self.image_name)
             self.image_built = True
-            print(f"[Docker] ✓ Image '{self.image_name}' already exists (using cached)")
+            print(f"[Docker] Image '{self.image_name}' already exists (using cached)")
             return True
         except docker.errors.ImageNotFound:
             print(f"[Docker] Image not found. Building...")
@@ -208,10 +208,8 @@ class DockerBenchmarkManager:
                     if line.startswith('{'):
                         try:
                             json_output = json.loads(line)
-                            print(f"[Docker] ✓ Parsed JSON successfully from line")
                             break
                         except json.JSONDecodeError as e:
-                            print(f"[Docker Debug] JSON parse failed for line: {e}")
                             continue
                 
                 # Strategy 2: Try to find JSON block (lines between first { and last })
@@ -229,7 +227,6 @@ class DockerBenchmarkManager:
                         if start_idx is not None and end_idx is not None:
                             json_str = '\n'.join(lines[start_idx:end_idx+1])
                             json_output = json.loads(json_str)
-                            print(f"[Docker] ✓ Parsed JSON successfully from block")
                     except Exception as e:
                         print(f"[Docker Debug] Block JSON parse failed: {e}")
                 
@@ -243,7 +240,7 @@ class DockerBenchmarkManager:
                         "exit_code": exit_code
                     }
                 
-                print(f"[Docker] ✓ Benchmark completed successfully!")
+                print(f"[Docker] Benchmark completed successfully!")
                 return json_output
                 
             except Exception as e:
@@ -277,7 +274,7 @@ class DockerBenchmarkManager:
             if self.image_built:
                 print(f"[Docker] Removing image '{self.image_name}'...")
                 self.client.images.remove(self.image_name, force=True)
-                print("[Docker] ✓ Image removed successfully!")
+                print("[Docker] Image removed successfully!")
                 self.image_built = False
         except docker.errors.ImageNotFound:
             print("[Docker] Image not found, nothing to clean up.")
@@ -414,11 +411,6 @@ public class Main {
     try:
         manager = get_manager()
         results = manager.run_benchmark(test_python, test_cpp, test_java, test_rust)
-        
-        print("\n" + "="*60)
-        print("BENCHMARK RESULTS")
-        print("="*60)
-        print(json.dumps(results, indent=2))
         
     except Exception as e:
         print(f"Test failed: {e}")
