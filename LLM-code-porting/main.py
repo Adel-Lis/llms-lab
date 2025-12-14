@@ -9,7 +9,7 @@ import signal
 import sys
 import atexit
 
-from setup_environment import get_manager, cleanup_manager
+from docker_setup import get_manager, cleanup_manager
 from ui import create_interface
 from styles import CUSTOM_CSS
 
@@ -19,7 +19,7 @@ def cleanup():
 
     try:
         # Optional: Uncomment to remove Docker image on exit
-        # cleanup_manager()
+        cleanup_manager()
 
         print("[Code Porter] Server closed successfully.")
     except Exception as e:

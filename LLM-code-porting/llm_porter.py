@@ -6,7 +6,7 @@ import concurrent.futures
 from typing import Tuple
 
 from config import get_client
-from setup_environment import get_system_info, get_compile_command
+from docker_setup import get_system_info, get_compile_command
 
 
 def system_prompt(language):

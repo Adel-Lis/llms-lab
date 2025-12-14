@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from typing import Dict, Tuple, Optional
 
-from setup_environment import run_benchmark
+from docker_setup import run_benchmark
 
 
 def execute_and_benchmark(python_code, cpp_code, java_code, rust_code):
