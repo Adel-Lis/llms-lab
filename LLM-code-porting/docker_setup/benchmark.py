@@ -231,6 +231,8 @@ def main():
         results["java"] = compile_and_run_java(java_file)
     else:
         results["java"] = {"success": False, "error": "File not found", "execution_time": None}
+
+    print(json.dumps(results))
     
 
 if __name__ == "__main__":

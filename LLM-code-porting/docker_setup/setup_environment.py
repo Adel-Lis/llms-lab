@@ -15,7 +15,7 @@ from typing import Dict, Optional, Tuple
 class DockerBenchmarkManager:
     """Manages Docker operations for multi-language code benchmarking"""
     
-    def __init__(self, dockerfile_path=".", image_name="code-porter-benchmark:latest"):
+    def __init__(self, dockerfile_path=None, image_name="code-porter-benchmark:latest"):
         """
         Initialize Docker manager
         
@@ -33,7 +33,10 @@ class DockerBenchmarkManager:
                 "Make sure Docker is installed and running."
             )
         
-        self.dockerfile_path = dockerfile_path
+        if dockerfile_path is None:
+            self.dockerfile_path = os.path.dirname(os.path.abspath(__file__))
+        else:
+            self.dockerfile_path = dockerfile_path
         self.image_name = image_name
         self.image_built = False
         
